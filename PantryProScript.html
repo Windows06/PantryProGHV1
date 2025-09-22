@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PantryProV1">
+    <link rel="manifest" href="data:application/manifest+json,{ &quot;name&quot;: &quot;PantryProV1&quot;, &quot;short_name&quot;: &quot;PantryPro&quot;, &quot;start_url&quot;: &quot;.&quot;, &quot;display&quot;: &quot;standalone&quot;, &quot;background_color&quot;: &quot;#f3f4f6&quot;, &quot;theme_color&quot;: &quot;#4f46e5&quot; }">
+    <title>PantryProV1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .item-card { transition: transform 0.2s ease-in-out; }
+        .item-card:hover { transform: translateY(-4px); }
+        .btn-primary { @apply w-full bg-purple-600 text-white p-3 mt-2 rounded-lg font-semibold hover:bg-purple-700 transition; }
+        .btn-secondary { @apply w-full bg-gray-200 text-gray-800 p-3 mt-2 rounded-lg font-semibold hover:bg-gray-300 transition; }
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); padding-top: 60px; }
+        .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 600px; border-radius: 0.5rem; position: relative; }
+        .loader { border: 8px solid #f3f3f3; border-radius: 50%; border-top: 8px solid #3498db; width: 60px; height: 60px; animation: spin 2s linear infinite; margin: 2rem auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+        <!-- App Title Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">PantryPro</h1>
+            <p id="header-subtitle" class="text-md text-gray-600 mt-2">Your shared pantry, simplified.</p>
+        </header>
+
+        <!-- Group Management UI -->
+        <div id="group-manager" class="p-6 bg-white rounded-xl shadow-lg max-w-md mx-auto">
+            <h2 class="text-2xl font-bold mb-4 text-center">Welcome!</h2>
+            <div id="join-view">
+                <p class="text-gray-600 mb-4 text-center">Join an existing group pantry or create a new one to get started.</p>
+                <input type="text" id="join-group-id-input" placeholder="Enter Group ID" class="w-full p-3 border rounded-lg text-center">
+                <button id="join-group-btn" class="btn-primary">Join Group</button>
+                <button id="show-create-view-btn" class="btn-secondary">Create a New Group</button>
+            </div>
+            <div id="create-view" style="display: none;">
+                <p class="text-gray-600 mb-2 text-center">Your new Group ID is:</p>
+                <div class="bg-gray-100 p-4 rounded-lg text-center mb-4">
+                    <p id="new-group-id-display" class="text-2xl font-mono font-bold tracking-wider"></p>
+                </div>
+                <p class="text-gray-500 text-sm mb-4 text-center">Share this ID with your roommates. They will enter it on their welcome screen.</p>
+                <button id="copy-id-btn" class="btn-primary">Copy ID</button>
+                <button id="join-new-group-btn" class="btn-secondary">Let's Go!</button>
+            </div>
+        </div>
+
+        <!-- Name Input UI (Initially Hidden) -->
+        <div id="name-manager" class="p-6 bg-white rounded-xl shadow-lg max-w-md mx-auto" style="display: none;">
+            <h2 class="text-2xl font-bold mb-4 text-center">What's your name?</h2>
+            <p class="text-gray-600 mb-4 text-center">This name will be shown next to items you add.</p>
+            <input type="text" id="user-name-input" placeholder="Enter your name" class="w-full p-3 border rounded-lg text-center">
+            <button id="save-name-btn" class="btn-primary">Save and Enter</button>
+        </div>
+
+        <!-- Main App Content (Initially Hidden) -->
+        <main id="app-content" class="grid grid-cols-1 lg:grid-cols-2 gap-8" style="display: none;">
+            <!-- Pantry Section -->
+            <div class="bg-white p-6 rounded-xl shadow-lg flex flex-col">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 class="text-2xl font-bold">Pantry Inventory</h2>
+                    <button id="leave-group-btn" class="text-sm text-red-500 hover:underline">Leave Group</button>
+                </div>
+                <div class="mb-4">
+                    <input type="search" id="pantry-search" placeholder="Search pantry..." class="w-full p-3 border rounded-lg">
+                </div>
+                <div id="pantry-list" class="space-y-3 h-96 overflow-y-auto pr-2 flex-grow"></div>
+                <div class="mt-4">
+                    <button id="suggest-recipes-btn" class="w-full bg-teal-600 text-white p-3 mb-4 rounded-lg font-semibold hover:bg-teal-700 transition">Suggest Recipes</button>
+                    <input type="text" id="pantry-item-name" placeholder="New item (e.g., Milk)" class="w-full p-3 border rounded-lg">
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <input type="number" id="pantry-item-quantity" placeholder="Quantity" class="w-full p-3 border rounded-lg">
+                        <input type="text" id="pantry-item-unit" placeholder="Unit (e.g., L, kg)" class="w-full p-3 border rounded-lg">
+                    </div>
+                    <button id="add-pantry-item-btn" class="w-full bg-blue-600 text-white p-3 mt-2 rounded-lg font-semibold hover:bg-blue-700">Add to Pantry</button>
+                </div>
+            </div>
+
+            <!-- Shopping List Section -->
+            <div class="bg-white p-6 rounded-xl shadow-lg flex flex-col">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 class="text-2xl font-bold">Shopping List</h2>
+                    <p id="user-display" class="text-sm text-gray-500"></p>
+                </div>
+                 <div class="mb-4">
+                    <input type="search" id="shopping-search" placeholder="Search shopping list..." class="w-full p-3 border rounded-lg">
+                </div>
+                <div id="shopping-list" class="space-y-3 h-96 overflow-y-auto pr-2 flex-grow"></div>
+                 <div class="mt-4">
+                    <input type="text" id="shopping-item-name" placeholder="Add to shopping list" class="w-full p-3 border rounded-lg">
+                    <button id="add-shopping-item-btn" class="w-full bg-green-600 text-white p-3 mt-2 rounded-lg font-semibold hover:bg-green-700">Add to List</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- RECIPE MODAL -->
+    <div id="recipe-modal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold mb-4 text-center">Recipe Suggestions</h2>
+            <div id="recipe-results" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2"></div>
+            <button id="close-recipe-modal-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold">&times;</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBtU2LGRGPrKVXSHKBslsupeso0Km7eJQQ",
+            authDomain: "pantryprogithubv1.firebaseapp.com",
+            projectId: "pantryprogithubv1",
+            storageBucket: "pantryprogithubv1.firebasestorage.app",
+            messagingSenderId: "686136450705",
+            appId: "1:686136450705:web:f9a82f5ac2bb26a6c2e930",
+            measurementId: "G-S5N098WDBZ"
+        };
+        const geminiApiKey = "AIzaSyDh5zod6zk33RRwjF79NqKdT2mLsHmEECc";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- DOM REFERENCES ---
+        const groupManager = document.getElementById('group-manager');
+        const nameManager = document.getElementById('name-manager');
+        const appContent = document.getElementById('app-content');
+        const headerSubtitle = document.getElementById('header-subtitle');
+        const joinView = document.getElementById('join-view');
+        const createView = document.getElementById('create-view');
+        const joinGroupIdInput = document.getElementById('join-group-id-input');
+        const joinGroupBtn = document.getElementById('join-group-btn');
+        const showCreateViewBtn = document.getElementById('show-create-view-btn');
+        const newGroupIdDisplay = document.getElementById('new-group-id-display');
+        const copyIdBtn = document.getElementById('copy-id-btn');
+        const joinNewGroupBtn = document.getElementById('join-new-group-btn');
+        const leaveGroupBtn = document.getElementById('leave-group-btn');
+        const pantryListEl = document.getElementById('pantry-list');
+        const shoppingListEl = document.getElementById('shopping-list');
+        const addPantryBtn = document.getElementById('add-pantry-item-btn');
+        const addShoppingBtn = document.getElementById('add-shopping-item-btn');
+        const pantryNameInput = document.getElementById('pantry-item-name');
+        const pantryQtyInput = document.getElementById('pantry-item-quantity');
+        const pantryUnitInput = document.getElementById('pantry-item-unit');
+        const shoppingNameInput = document.getElementById('shopping-item-name');
+        const userNameInput = document.getElementById('user-name-input');
+        const saveNameBtn = document.getElementById('save-name-btn');
+        const userDisplay = document.getElementById('user-display');
+        const pantrySearch = document.getElementById('pantry-search');
+        const shoppingSearch = document.getElementById('shopping-search');
+        
+        let pantryCollectionRef, shoppingCollectionRef;
+        let pantryUnsubscribe, shoppingUnsubscribe;
+        let currentPantryItems = [];
+        let fullPantryList = [];
+        let fullShoppingList = [];
+        let currentUserName = '';
+
+        // --- GROUP & NAME MANAGEMENT ---
+        function generateGroupId() {
+            const words = ['apple', 'sun', 'dream', 'river', 'moon', 'star', 'ocean', 'sky', 'rose', 'wind'];
+            const randomWord = () => words[Math.floor(Math.random() * words.length)];
+            return `${randomWord()}-${randomWord()}-${randomWord()}`;
+        }
+
+        function enterApp(groupId) {
+            localStorage.setItem('pantryGroupId', groupId);
+            const savedName = localStorage.getItem('pantryUserName');
+            if (savedName) {
+                currentUserName = savedName;
+                loadMainApp(groupId);
+            } else {
+                groupManager.style.display = 'none';
+                nameManager.style.display = 'block';
+            }
+        }
+
+        function loadMainApp(groupId) {
+            nameManager.style.display = 'none';
+            appContent.style.display = 'grid';
+            headerSubtitle.textContent = `Group ID: ${groupId}`;
+            userDisplay.textContent = `User: ${currentUserName}`;
+            setupFirestoreListeners(groupId);
+        }
+
+        saveNameBtn.addEventListener('click', () => {
+            const userName = userNameInput.value.trim();
+            if (userName) {
+                localStorage.setItem('pantryUserName', userName);
+                currentUserName = userName;
+                const groupId = localStorage.getItem('pantryGroupId');
+                loadMainApp(groupId);
+            } else {
+                alert('Please enter your name.');
+            }
+        });
+        
+        async function joinGroup() {
+            const groupId = joinGroupIdInput.value.trim().toLowerCase();
+            if (!groupId) {
+                alert('Please enter a Group ID.');
+                return;
+            }
+            const testRef = collection(db, `groups/${groupId}/pantry`);
+            try {
+                await getDocs(query(testRef, limit(1)));
+                enterApp(groupId);
+            } catch (error) {
+                console.error("Error joining group:", error);
+                alert("Could not find this group. Please check the ID and your Firestore security rules.");
+            }
+        }
+
+        function leaveGroup() {
+            if (pantryUnsubscribe) pantryUnsubscribe();
+            if (shoppingUnsubscribe) shoppingUnsubscribe();
+            localStorage.removeItem('pantryGroupId');
+            localStorage.removeItem('pantryUserName');
+            pantryListEl.innerHTML = '';
+            shoppingListEl.innerHTML = '';
+            appContent.style.display = 'none';
+            groupManager.style.display = 'block';
+            headerSubtitle.textContent = 'Your shared pantry, simplified.';
+            joinView.style.display = 'block';
+            createView.style.display = 'none';
+        }
+        
+        showCreateViewBtn.addEventListener('click', () => {
+            const newGroupId = generateGroupId();
+            newGroupIdDisplay.textContent = newGroupId;
+            joinView.style.display = 'none';
+            createView.style.display = 'block';
+        });
+
+        copyIdBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(newGroupIdDisplay.textContent).then(() => {
+                copyIdBtn.textContent = 'Copied!';
+                setTimeout(() => { copyIdBtn.textContent = 'Copy ID'; }, 2000);
+            }, () => {
+                 alert('Failed to copy. Please copy the ID manually.');
+            });
+        });
+        joinNewGroupBtn.addEventListener('click', () => enterApp(newGroupIdDisplay.textContent));
+        joinGroupBtn.addEventListener('click', joinGroup);
+        leaveGroupBtn.addEventListener('click', leaveGroup);
+
+        // --- FIRESTORE & SEARCH ---
+        function setupFirestoreListeners(groupId) {
+            pantryCollectionRef = collection(db, `groups/${groupId}/pantry`);
+            shoppingCollectionRef = collection(db, `groups/${groupId}/shoppingList`);
+
+            pantryUnsubscribe = onSnapshot(pantryCollectionRef, snapshot => {
+                fullPantryList = snapshot.docs;
+                filterAndRenderPantry();
+            });
+            shoppingUnsubscribe = onSnapshot(shoppingCollectionRef, snapshot => {
+                fullShoppingList = snapshot.docs;
+                filterAndRenderShopping();
+            });
+        }
+        
+        function filterAndRenderPantry() {
+            const searchTerm = pantrySearch.value.toLowerCase();
+            const filteredDocs = fullPantryList.filter(doc => doc.data().name.toLowerCase().includes(searchTerm));
+            currentPantryItems = filteredDocs.map(doc => doc.data());
+            renderList(pantryListEl, filteredDocs, 'pantry');
+        }
+
+        function filterAndRenderShopping() {
+            const searchTerm = shoppingSearch.value.toLowerCase();
+            const filteredDocs = fullShoppingList.filter(doc => doc.data().name.toLowerCase().includes(searchTerm));
+            renderList(shoppingListEl, filteredDocs, 'shopping');
+        }
+
+        pantrySearch.addEventListener('input', filterAndRenderPantry);
+        shoppingSearch.addEventListener('input', filterAndRenderShopping);
+        
+        function renderList(element, docs, type) {
+            element.innerHTML = '';
+            if (docs.length === 0) {
+                element.innerHTML = `<p class="text-gray-500 text-center p-4">This list is empty.</p>`;
+                return;
+            }
+            const sortedDocs = docs.sort((a, b) => a.data().name.localeCompare(b.data().name));
+            sortedDocs.forEach(doc => {
+                const item = doc.data();
+                const itemEl = document.createElement('div');
+                itemEl.className = 'item-card p-3 bg-gray-50 rounded-lg border';
+                const addedByText = item.addedBy ? `<small class="text-gray-400 block">Added by: ${item.addedBy}</small>` : '';
+
+                if (type === 'pantry') {
+                    const isLow = item.quantity <= 1;
+                    const unitText = item.unit ? ` ${item.unit}` : '';
+                    itemEl.innerHTML = `
+                        <div class="flex justify-between items-start">
+                           <div>
+                                <span class="font-semibold">${item.name}</span>
+                                <span class="text-sm ml-2 ${isLow ? 'text-red-600 font-bold' : 'text-gray-500'}">Qty: ${item.quantity}${unitText}</span>
+                                ${addedByText}
+                           </div>
+                            <div class="flex items-center space-x-1 flex-shrink-0 ml-2">
+                                <button data-id="${doc.id}" data-quantity="${item.quantity}" data-action="decrease" class="px-2 py-1 text-sm bg-yellow-400 text-white rounded hover:bg-yellow-500">-</button>
+                                <button data-id="${doc.id}" data-quantity="${item.quantity}" data-action="increase" class="px-2 py-1 text-sm bg-blue-400 text-white rounded hover:bg-blue-500">+</button>
+                                <button data-id="${doc.id}" data-name="${item.name}" data-action="add-to-shopping" class="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600">Shop</button>
+                                <button data-id="${doc.id}" data-action="delete" class="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">Del</button>
+                            </div>
+                        </div>`;
+                } else { // shopping
+                    itemEl.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="font-semibold">${item.name}</span>
+                                ${addedByText}
+                            </div>
+                            <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
+                                <button data-id="${doc.id}" data-name="${item.name}" data-action="purchased" class="px-3 py-1 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600">Got it!</button>
+                                <button data-id="${doc.id}" data-action="delete" class="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600">Del</button>
+                            </div>
+                        </div>`;
+                }
+                element.appendChild(itemEl);
+            });
+        }
+        
+        // --- EVENT LISTENERS & DATA HANDLING ---
+        pantryListEl.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            const { id, action, quantity, name } = button.dataset;
+            const itemRef = doc(pantryCollectionRef, id);
+
+            if (action === 'increase') {
+                await updateDoc(itemRef, { quantity: parseInt(quantity) + 1, addedBy: currentUserName });
+            } else if (action === 'decrease') {
+                const currentQuantity = parseInt(quantity);
+                if (currentQuantity > 1) {
+                    await updateDoc(itemRef, { quantity: currentQuantity - 1, addedBy: currentUserName });
+                } else {
+                    await deleteDoc(itemRef);
+                }
+            } else if (action === 'delete') {
+                await deleteDoc(itemRef);
+            } else if (action === 'add-to-shopping') {
+                const existingItem = fullShoppingList.find(doc => doc.data().name.toLowerCase() === name.toLowerCase());
+                if (!existingItem) {
+                    await addDoc(shoppingCollectionRef, { name, addedBy: currentUserName });
+                }
+            }
+        });
+
+        shoppingListEl.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            const { id, action, name } = button.dataset;
+            const itemRef = doc(shoppingCollectionRef, id);
+
+            if (action === 'purchased') {
+                const existingPantryItem = fullPantryList.find(doc => doc.data().name.toLowerCase() === name.toLowerCase());
+                if (existingPantryItem) {
+                    const pantryItemRef = doc(pantryCollectionRef, existingPantryItem.id);
+                    const newQuantity = (existingPantryItem.data().quantity || 0) + 1;
+                    await updateDoc(pantryItemRef, { quantity: newQuantity, addedBy: currentUserName });
+                } else {
+                    await addDoc(pantryCollectionRef, { name, quantity: 1, unit: '', addedBy: currentUserName });
+                }
+                await deleteDoc(itemRef);
+            } else if (action === 'delete') {
+                await deleteDoc(itemRef);
+            }
+        });
+        
+        addPantryBtn.addEventListener('click', async () => {
+            const name = pantryNameInput.value.trim();
+            const quantity = parseInt(pantryQtyInput.value) || 1;
+            const unit = pantryUnitInput.value.trim();
+
+            if (name) {
+                const existingItem = fullPantryList.find(doc => doc.data().name.toLowerCase() === name.toLowerCase());
+                if (existingItem) {
+                    const itemRef = doc(pantryCollectionRef, existingItem.id);
+                    const newQuantity = (existingItem.data().quantity || 0) + quantity;
+                    await updateDoc(itemRef, { quantity: newQuantity, addedBy: currentUserName });
+                } else {
+                    await addDoc(pantryCollectionRef, { name, quantity, unit, addedBy: currentUserName });
+                }
+                pantryNameInput.value = '';
+                pantryQtyInput.value = '';
+                pantryUnitInput.value = '';
+            }
+        });
+
+        addShoppingBtn.addEventListener('click', async () => {
+            const name = shoppingNameInput.value.trim();
+            if (name) {
+                const existingItem = fullShoppingList.find(doc => doc.data().name.toLowerCase() === name.toLowerCase());
+                if (!existingItem) {
+                    await addDoc(shoppingCollectionRef, { name, addedBy: currentUserName });
+                }
+                shoppingNameInput.value = '';
+            }
+        });
+        
+        // --- RECIPE LOGIC ---
+        const suggestRecipesBtn = document.getElementById('suggest-recipes-btn');
+        const recipeModal = document.getElementById('recipe-modal');
+        const recipeResults = document.getElementById('recipe-results');
+        const closeRecipeModalBtn = document.getElementById('close-recipe-modal-btn');
+        
+        closeRecipeModalBtn.onclick = () => recipeModal.style.display = "none";
+        suggestRecipesBtn.addEventListener('click', () => {
+            if (!geminiApiKey || geminiApiKey === "YOUR_GEMINI_API_KEY_HERE") {
+                 alert("Recipe feature is not configured. Please add your Gemini API key to the index.html file.");
+                return;
+            }
+            if (currentPantryItems.length === 0) {
+                alert("Your pantry is empty! Add items to get recipes.");
+                return;
+            }
+            recipeResults.innerHTML = '<div class="loader"></div>';
+            recipeModal.style.display = "block";
+            getRecipeSuggestions();
+        });
+        
+        async function getRecipeSuggestions() {
+            const ingredients = currentPantryItems.map(item => item.name);
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`;
+            const prompt = `
+                Based on these ingredients: ${ingredients.join(', ')}. 
+                Suggest 2 simple recipes. 
+                Format the response as a single, valid JSON array of objects.
+                Each object must have these exact keys: "title", "description", "ingredients" (an array of strings), and "instructions" (an array of strings).
+                Do not include any introductory text, markdown, or any characters outside of the JSON array itself.
+            `;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    throw new Error(`API Error (${response.status}): ${errorBody}`);
+                }
+                const data = await response.json();
+                const jsonText = data.candidates[0].content.parts[0].text;
+                const recipes = JSON.parse(jsonText);
+                renderRecipes(recipes, ingredients);
+            } catch (error) {
+                console.error("Error fetching recipes:", error);
+                recipeResults.innerHTML = `<p class="text-center text-red-500">Sorry, could not get recipes at this time. Please try again later. <br><small>${error.message}</small></p>`;
+            }
+        }
+
+        function renderRecipes(recipes, pantryIngredients) {
+            recipeResults.innerHTML = '';
+            const pantryLower = pantryIngredients.map(i => i.toLowerCase());
+            if (!recipes || recipes.length === 0) {
+                 recipeResults.innerHTML = `<p class="text-center text-gray-500">No recipes could be generated with your current ingredients.</p>`;
+                 return;
+            }
+            recipes.forEach(recipe => {
+                const recipeEl = document.createElement('div');
+                recipeEl.className = 'p-4 border rounded-lg bg-gray-50';
+                recipeEl.innerHTML = `
+                    <h3 class="text-xl font-bold text-teal-700">${recipe.title}</h3>
+                    <p class="text-sm text-gray-600 mb-3">${recipe.description}</p>
+                    <h4 class="font-semibold mb-1">Ingredients:</h4>
+                    <ul class="list-disc list-inside mb-3 text-sm">
+                        ${(recipe.ingredients || []).map(ing => {
+                            const haveIt = pantryLower.some(pantryIng => ing.toLowerCase().includes(pantryIng));
+                            return `<li class="${haveIt ? 'text-green-600 font-semibold' : ''}">${ing} ${haveIt ? '✓' : ''}</li>`;
+                        }).join('')}
+                    </ul>
+                    <h4 class="font-semibold mb-1">Instructions:</h4>
+                    <ol class="list-decimal list-inside text-sm space-y-1">
+                        ${(recipe.instructions || []).map(step => `<li>${step}</li>`).join('')}
+                    </ol>`;
+                recipeResults.appendChild(recipeEl);
+            });
+        }
+        
+        // --- INITIALIZATION ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                const savedGroupId = localStorage.getItem('pantryGroupId');
+                if (savedGroupId) {
+                    enterApp(savedGroupId);
+                }
+            } else {
+                signInAnonymously(auth).catch(err => console.error("Sign in failed:", err));
+            }
+        });
+        
+    </script>
+</body>
+</html>
+
