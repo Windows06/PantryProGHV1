@@ -3,9 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="PantryProV1">
     <title>PantryProV1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
@@ -113,51 +110,8 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        const dom = {
-            initialSetup: document.getElementById('initial-setup-view'),
-            groupManager: document.getElementById('group-manager'),
-            nameManager: document.getElementById('name-manager'),
-            appContent: document.getElementById('app-content'),
-            headerSubtitle: document.getElementById('header-subtitle'),
-            joinView: document.getElementById('join-view'),
-            createView: document.getElementById('create-view'),
-            joinGroupIdInput: document.getElementById('join-group-id-input'),
-            joinGroupBtn: document.getElementById('join-group-btn'),
-            showCreateViewBtn: document.getElementById('show-create-view-btn'),
-            newGroupIdDisplay: document.getElementById('new-group-id-display'),
-            copyIdBtn: document.getElementById('copy-id-btn'),
-            joinNewGroupBtn: document.getElementById('join-new-group-btn'),
-            pantryListEl: document.getElementById('pantry-list'),
-            shoppingListEl: document.getElementById('shopping-list'),
-            addPantryBtn: document.getElementById('add-pantry-item-btn'),
-            addShoppingBtn: document.getElementById('add-shopping-item-btn'),
-            pantryNameInput: document.getElementById('pantry-item-name'),
-            pantryQtyInput: document.getElementById('pantry-item-quantity'),
-            pantryUnitInput: document.getElementById('pantry-item-unit'),
-            shoppingNameInput: document.getElementById('shopping-item-name'),
-            userNameInput: document.getElementById('user-name-input'),
-            saveNameBtn: document.getElementById('save-name-btn'),
-            userDisplay: document.getElementById('user-display'),
-            pantrySearch: document.getElementById('pantry-search'),
-            shoppingSearch: document.getElementById('shopping-search'),
-            switchGroupBtn: document.getElementById('switch-group-btn'),
-            groupSwitcherModal: document.getElementById('group-switcher-modal'),
-            savedGroupsList: document.getElementById('saved-groups-list'),
-            joinAnotherGroupInput: document.getElementById('join-another-group-input'),
-            joinAnotherGroupBtn: document.getElementById('join-another-group-btn'),
-            createAnotherGroupBtn: document.getElementById('create-another-group-btn'),
-            closeSwitcherBtn: document.getElementById('close-switcher-btn'),
-            suggestRecipesBtn: document.getElementById('suggest-recipes-btn'),
-            recipeModal: document.getElementById('recipe-modal'),
-            recipeResults: document.getElementById('recipe-results'),
-            closeRecipeModalBtn: document.getElementById('close-recipe-modal-btn'),
-            scannerModal: document.getElementById('scanner-modal'),
-            scannerVideo: document.getElementById('scanner-video'),
-            scannerStatus: document.getElementById('scanner-status'),
-            closeScannerBtn: document.getElementById('close-scanner-btn'),
-            scanPantryBtn: document.getElementById('scan-pantry-btn'),
-            scanShoppingBtn: document.getElementById('scan-shopping-btn'),
-        };
+        const dom = Object.fromEntries(Array.from(document.querySelectorAll('[id]')).map(el => [el.id.replace(/-./g, c => c[1].toUpperCase()), el]));
+        const codeReader = new ZXing.BrowserMultiFormatReader();
 
         let state = {
             userName: localStorage.getItem('pantryUserName'),
@@ -168,14 +122,13 @@
             pantryUnsubscribe: () => {},
             shoppingUnsubscribe: () => {},
         };
-        const codeReader = new ZXing.BrowserMultiFormatReader();
-
+        
         function showView(view) {
-            dom.initialSetup.style.display = 'none';
+            dom.initialSetupView.style.display = 'none';
             dom.appContent.style.display = 'none';
             if (view === 'app') dom.appContent.style.display = 'grid';
             else {
-                dom.initialSetup.style.display = 'block';
+                dom.initialSetupView.style.display = 'block';
                 dom.groupManager.style.display = view === 'group' ? 'block' : 'none';
                 dom.nameManager.style.display = view === 'name' ? 'block' : 'none';
             }
@@ -214,8 +167,8 @@
                 const filtered = list.filter(doc => doc.data().name.toLowerCase().includes(searchTerm));
                 renderList(el, filtered, type);
             };
-            render(dom.pantryListEl, state.pantry, 'pantry');
-            render(dom.shoppingListEl, state.shopping, 'shopping');
+            render(dom.pantryList, state.pantry, 'pantry');
+            render(dom.shoppingList, state.shopping, 'shopping');
         }
 
         function renderList(element, docs, type) {
@@ -223,7 +176,7 @@
             docs.sort((a, b) => a.data().name.localeCompare(b.data().name)).forEach(doc => {
                 const item = doc.data();
                 const itemEl = document.createElement('div');
-                itemEl.className = 'p-3 bg-gray-50 rounded-lg border';
+                itemEl.className = 'item-card p-3 bg-gray-50 rounded-lg border';
                 const addedBy = item.addedBy ? `<small class="text-gray-400 block">By: ${item.addedBy}</small>` : '';
                 if (type === 'pantry') {
                     itemEl.innerHTML = `<div class="flex justify-between items-start"><div><span class="font-semibold">${item.name}</span><span class="text-sm ml-2 ${item.quantity <= 1 ? 'text-red-600 font-bold' : 'text-gray-500'}">Qty: ${item.quantity}${item.unit ? ` ${item.unit}`:''}</span>${addedBy}</div><div class="flex items-center space-x-1 flex-shrink-0 ml-2"><button data-id="${doc.id}" data-quantity="${item.quantity}" data-action="decrease" class="px-2 py-1 text-sm bg-yellow-400 text-white rounded">-</button><button data-id="${doc.id}" data-quantity="${item.quantity}" data-action="increase" class="px-2 py-1 text-sm bg-blue-400 text-white rounded">+</button><button data-id="${doc.id}" data-name="${item.name}" data-action="shop" class="px-2 py-1 text-sm bg-green-500 text-white rounded">Shop</button><button data-id="${doc.id}" data-action="delete" class="px-2 py-1 text-sm bg-red-500 text-white rounded">Del</button></div></div>`;
@@ -257,6 +210,61 @@
             }
         }
         
+        function setupEventListeners() {
+            dom.saveNameBtn.addEventListener('click', () => {
+                const userName = dom.userNameInput.value.trim();
+                if (userName) {
+                    state.userName = userName;
+                    localStorage.setItem('pantryUserName', userName);
+                    loadMainApp(state.activeGroup);
+                }
+            });
+            dom.joinGroupBtn.addEventListener('click', () => joinGroup(dom.joinGroupIdInput.value.trim().toLowerCase()));
+            dom.showCreateViewBtn.addEventListener('click', () => {
+                dom.newGroupIdDisplay.textContent = generateGroupId();
+                dom.joinView.style.display = 'none';
+                dom.createView.style.display = 'block';
+            });
+            dom.copyIdBtn.addEventListener('click', () => {
+                const text = dom.newGroupIdDisplay.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    dom.copyIdBtn.textContent = 'Copied!';
+                    setTimeout(() => dom.copyIdBtn.textContent = 'Copy ID & Share', 2000);
+                }).catch(() => alert('Could not copy text.'));
+            });
+            dom.joinNewGroupBtn.addEventListener('click', () => enterApp(dom.newGroupIdDisplay.textContent));
+            dom.switchGroupBtn.addEventListener('click', () => { renderSavedGroups(); dom.groupSwitcherModal.style.display = 'block'; });
+            dom.closeSwitcherBtn.addEventListener('click', () => dom.groupSwitcherModal.style.display = 'none');
+            dom.joinAnotherGroupBtn.addEventListener('click', () => joinGroup(dom.joinAnotherGroupInput.value.trim().toLowerCase()));
+            dom.createAnotherGroupBtn.addEventListener('click', () => { dom.groupSwitcherModal.style.display = 'none'; showView('group'); dom.showCreateViewBtn.click(); });
+            dom.pantrySearch.addEventListener('input', renderFilteredLists);
+            dom.shoppingSearch.addEventListener('input', renderFilteredLists);
+            dom.pantryListEl.addEventListener('click', (e) => handleItemAction('pantry', e));
+            dom.shoppingListEl.addEventListener('click', (e) => handleItemAction('shopping', e));
+            dom.addPantryBtn.addEventListener('click', async () => {
+                const name = dom.pantryNameInput.value.trim();
+                if (!name) return;
+                const quantity = parseInt(dom.pantryQtyInput.value) || 1;
+                const pantryRef = collection(db, `groups/${state.activeGroup}/pantry`);
+                const existing = state.pantry.find(d => d.data().name.toLowerCase() === name.toLowerCase());
+                if (existing) await updateDoc(doc(pantryRef, existing.id), { quantity: (existing.data().quantity || 0) + quantity, addedBy: state.userName });
+                else await addDoc(pantryRef, { name, quantity, unit: dom.pantryUnitInput.value.trim(), addedBy: state.userName });
+                dom.pantryNameInput.value = dom.pantryQtyInput.value = dom.pantryUnitInput.value = '';
+            });
+            dom.addShoppingBtn.addEventListener('click', async () => {
+                const name = dom.shoppingNameInput.value.trim();
+                if (name && !state.shopping.find(d => d.data().name.toLowerCase() === name.toLowerCase())) {
+                    await addDoc(collection(db, `groups/${state.activeGroup}/shoppingList`), { name, addedBy: state.userName });
+                }
+                dom.shoppingNameInput.value = '';
+            });
+            dom.closeRecipeModalBtn.addEventListener('click', () => dom.recipeModal.style.display = "none");
+            dom.suggestRecipesBtn.addEventListener('click', handleSuggestRecipes);
+            dom.scanPantryBtn.addEventListener('click', () => startScanner(dom.pantryNameInput));
+            dom.scanShoppingBtn.addEventListener('click', () => startScanner(dom.shoppingNameInput));
+            dom.closeScannerBtn.addEventListener('click', stopScanner);
+        }
+        
         async function handleSuggestRecipes() {
             if (!geminiApiKey.startsWith("AIza")) return alert("Please add a valid Gemini API key.");
             if (state.pantry.length === 0) return alert("Pantry is empty!");
@@ -288,65 +296,7 @@
         }
         
         function init() {
-            dom.saveNameBtn.addEventListener('click', () => {
-                const userName = dom.userNameInput.value.trim();
-                if (userName) {
-                    state.userName = userName;
-                    localStorage.setItem('pantryUserName', userName);
-                    loadMainApp(state.activeGroup);
-                }
-            });
-            dom.joinGroupBtn.addEventListener('click', (e) => joinGroup(dom.joinGroupIdInput.value.trim().toLowerCase()));
-            dom.showCreateViewBtn.addEventListener('click', () => {
-                dom.newGroupIdDisplay.textContent = generateGroupId();
-                dom.joinView.style.display = 'none';
-                dom.createView.style.display = 'block';
-            });
-            dom.copyIdBtn.addEventListener('click', () => {
-                const text = dom.newGroupIdDisplay.textContent;
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    dom.copyIdBtn.textContent = 'Copied!';
-                    setTimeout(() => dom.copyIdBtn.textContent = 'Copy ID & Share', 2000);
-                } catch (err) { alert('Could not copy text.'); }
-                document.body.removeChild(textArea);
-            });
-            dom.joinNewGroupBtn.addEventListener('click', () => enterApp(dom.newGroupIdDisplay.textContent));
-            dom.switchGroupBtn.addEventListener('click', () => { renderSavedGroups(); dom.groupSwitcherModal.style.display = 'block'; });
-            dom.closeSwitcherBtn.addEventListener('click', () => dom.groupSwitcherModal.style.display = 'none');
-            dom.joinAnotherGroupBtn.addEventListener('click', (e) => joinGroup(dom.joinAnotherGroupInput.value.trim().toLowerCase()));
-            dom.createAnotherGroupBtn.addEventListener('click', () => { dom.groupSwitcherModal.style.display = 'none'; showView('group'); dom.showCreateViewBtn.click(); });
-            dom.pantrySearch.addEventListener('input', renderFilteredLists);
-            dom.shoppingSearch.addEventListener('input', renderFilteredLists);
-            dom.pantryListEl.addEventListener('click', (e) => handleItemAction('pantry', e));
-            dom.shoppingListEl.addEventListener('click', (e) => handleItemAction('shopping', e));
-            dom.addPantryBtn.addEventListener('click', async () => {
-                const name = dom.pantryNameInput.value.trim();
-                if (!name) return;
-                const quantity = parseInt(dom.pantryQtyInput.value) || 1;
-                const pantryRef = collection(db, `groups/${state.activeGroup}/pantry`);
-                const existing = state.pantry.find(d => d.data().name.toLowerCase() === name.toLowerCase());
-                if (existing) await updateDoc(doc(pantryRef, existing.id), { quantity: (existing.data().quantity || 0) + quantity, addedBy: state.userName });
-                else await addDoc(pantryRef, { name, quantity, unit: dom.pantryUnitInput.value.trim(), addedBy: state.userName });
-                dom.pantryNameInput.value = dom.pantryQtyInput.value = dom.pantryUnitInput.value = '';
-            });
-            dom.addShoppingBtn.addEventListener('click', async () => {
-                const name = dom.shoppingNameInput.value.trim();
-                if (name && !state.shopping.find(d => d.data().name.toLowerCase() === name.toLowerCase())) {
-                    await addDoc(collection(db, `groups/${state.activeGroup}/shoppingList`), { name, addedBy: state.userName });
-                }
-                dom.shoppingNameInput.value = '';
-            });
-            dom.closeRecipeModalBtn.addEventListener('click', () => dom.recipeModal.style.display = "none");
-            dom.suggestRecipesBtn.addEventListener('click', handleSuggestRecipes);
-            dom.scanPantryBtn.addEventListener('click', () => startScanner(dom.pantryNameInput));
-            dom.scanShoppingBtn.addEventListener('click', () => startScanner(dom.shoppingNameInput));
-            dom.closeScannerBtn.addEventListener('click', stopScanner);
-
+            setupEventListeners();
             onAuthStateChanged(auth, user => {
                 if (user) {
                     if (state.activeGroup) enterApp(state.activeGroup);
