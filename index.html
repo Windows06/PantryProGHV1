@@ -239,30 +239,7 @@
                 dom.recipeResults.appendChild(recipeEl);
             });
         }
-
-        function generateId() {
-            const words = ['apple', 'sun', 'dream', 'river', 'moon', 'star', 'ocean', 'sky', 'rose', 'wind'];
-            const randomWord = () => words[Math.floor(Math.random() * words.length)];
-            return `${randomWord()}-${randomWord()}-${randomWord()}`;
-        }
         
-        async function initJoinGroup(e) {
-            const btn = e.target;
-            const groupId = dom.joinGroupIdInput.value.trim().toLowerCase();
-            if (!groupId) return alert('Please enter a Group ID.');
-            btn.disabled = true;
-            btn.textContent = 'Joining...';
-            try {
-                await getDocs(query(collection(db, `groups/${groupId}/pantry`), limit(1)));
-                enterApp(groupId);
-            } catch (error) {
-                alert("Could not find this group. Please check the ID.");
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Join Group';
-            }
-        }
-
         function init() {
             dom.saveNameBtn.addEventListener('click', () => {
                 const userName = dom.userNameInput.value.trim();
@@ -272,9 +249,9 @@
                     loadMainApp(state.activeGroup);
                 }
             });
-            dom.joinGroupBtn.addEventListener('click', initJoinGroup);
+            dom.joinGroupBtn.addEventListener('click', (e) => joinGroup(dom.joinGroupIdInput.value.trim().toLowerCase()));
             dom.showCreateViewBtn.addEventListener('click', () => {
-                dom.newGroupIdDisplay.textContent = generateId();
+                dom.newGroupIdDisplay.textContent = generateGroupId();
                 dom.joinView.style.display = 'none';
                 dom.createView.style.display = 'block';
             });
@@ -288,7 +265,7 @@
             dom.joinNewGroupBtn.addEventListener('click', () => enterApp(dom.newGroupIdDisplay.textContent));
             dom.switchGroupBtn.addEventListener('click', () => { renderSavedGroups(); dom.groupSwitcherModal.style.display = 'block'; });
             dom.closeSwitcherBtn.addEventListener('click', () => dom.groupSwitcherModal.style.display = 'none');
-            dom.joinAnotherGroupBtn.addEventListener('click', (e) => joinGroup(dom.joinAnotherGroupInput.value.trim().toLowerCase(), e));
+            dom.joinAnotherGroupBtn.addEventListener('click', (e) => joinGroup(dom.joinAnotherGroupInput.value.trim().toLowerCase()));
             dom.createAnotherGroupBtn.addEventListener('click', () => { dom.groupSwitcherModal.style.display = 'none'; showView('group'); dom.showCreateViewBtn.click(); });
             dom.pantrySearch.addEventListener('input', renderFilteredLists);
             dom.shoppingSearch.addEventListener('input', renderFilteredLists);
