@@ -1,311 +1,262 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PantryProV1</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        .btn-primary { @apply w-full bg-purple-600 text-white p-3 mt-2 rounded-lg font-semibold hover:bg-purple-700 transition disabled:opacity-50; }
-        .btn-secondary { @apply w-full bg-gray-200 text-gray-800 p-3 mt-2 rounded-lg font-semibold hover:bg-gray-300 transition; }
-        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border-radius: 0.5rem; width: 90%; max-width: 500px; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #scanner-modal { display: none; flex-direction: column; justify-content: center; align-items: center; background-color: rgba(0,0,0,0.8); }
-        #scanner-video { width: 80%; max-width: 640px; border: 3px solid white; border-radius: 8px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Pantry</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    section { margin-bottom: 2rem; }
+    button { margin-left: .5rem; }
+    #group-switcher-modal, #recipe-modal, #scanner-container { display: none; }
+  </style>
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // --- Firebase setup ---
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // --- DOM cache ---
+    const dom = {
+      userNameInput: document.getElementById('user-name-input'),
+      saveNameBtn: document.getElementById('save-name-btn'),
+
+      joinGroupBtn: document.getElementById('join-group-btn'),
+      joinGroupIdInput: document.getElementById('join-group-id-input'),
+      showCreateViewBtn: document.getElementById('show-create-view-btn'),
+      newGroupIdDisplay: document.getElementById('new-group-id-display'),
+      joinView: document.getElementById('join-view'),
+      createView: document.getElementById('create-view'),
+      copyIdBtn: document.getElementById('copy-id-btn'),
+      joinNewGroupBtn: document.getElementById('join-new-group-btn'),
+
+      switchGroupBtn: document.getElementById('switch-group-btn'),
+      groupSwitcherModal: document.getElementById('group-switcher-modal'),
+      closeSwitcherBtn: document.getElementById('close-switcher-btn'),
+      joinAnotherGroupBtn: document.getElementById('join-another-group-btn'),
+      joinAnotherGroupInput: document.getElementById('join-another-group-input'),
+      createAnotherGroupBtn: document.getElementById('create-another-group-btn'),
+
+      pantrySearch: document.getElementById('pantry-search'),
+      shoppingSearch: document.getElementById('shopping-search'),
+      pantryList: document.getElementById('pantry-list'),
+      shoppingList: document.getElementById('shopping-list'),
+
+      addPantryItemBtn: document.getElementById('add-pantry-item-btn'),
+      pantryItemName: document.getElementById('pantry-item-name'),
+      pantryItemQuantity: document.getElementById('pantry-item-quantity'),
+      pantryItemUnit: document.getElementById('pantry-item-unit'),
+
+      addShoppingItemBtn: document.getElementById('add-shopping-item-btn'),
+      shoppingItemName: document.getElementById('shopping-item-name'),
+
+      suggestRecipesBtn: document.getElementById('suggest-recipes-btn'),
+      recipeModal: document.getElementById('recipe-modal'),
+      closeRecipeModalBtn: document.getElementById('close-recipe-modal-btn'),
+
+      scanPantryBtn: document.getElementById('scan-pantry-btn'),
+      scanShoppingBtn: document.getElementById('scan-shopping-btn'),
+      closeScannerBtn: document.getElementById('close-scanner-btn'),
+      scannerContainer: document.getElementById('scanner-container')
+    };
+
+    // --- State ---
+    const state = {
+      userName: '',
+      activeGroup: '',
+      pantry: [],
+      shopping: []
+    };
+
+    // --- Helpers ---
+    const generateId = () => Math.random().toString(36).substring(2, 8);
+    function showView(view) {
+      if (view === 'group') {
+        dom.joinView.style.display = 'block';
+        dom.createView.style.display = 'none';
+      }
+    }
+    function loadMainApp(groupId) {
+      console.log("Loading group:", groupId);
+    }
+    function enterApp(groupId) {
+      console.log("Entering group:", groupId);
+      loadMainApp(groupId);
+    }
+    function handleItemAction(list, e) { console.log("Clicked", list, e.target); }
+    function renderFilteredLists() { console.log("Filter triggered"); }
+    function renderSavedGroups() { console.log("Render saved groups"); }
+    function handleSuggestRecipes() { dom.recipeModal.style.display = "block"; }
+    function startScanner(targetInput) { dom.scannerContainer.style.display = "block"; console.log("Start scanner for", targetInput); }
+    function stopScanner() { dom.scannerContainer.style.display = "none"; }
+
+    // --- Event listeners ---
+    function init() {
+      dom.saveNameBtn.addEventListener('click', () => {
+        const userName = dom.userNameInput.value.trim();
+        if (userName) {
+          state.userName = userName;
+          localStorage.setItem('pantryUserName', userName);
+          loadMainApp(state.activeGroup);
+        }
+      });
+
+      dom.joinGroupBtn.addEventListener('click', () => enterApp(dom.joinGroupIdInput.value.trim().toLowerCase()));
+      dom.showCreateViewBtn.addEventListener('click', () => {
+        dom.newGroupIdDisplay.textContent = generateId();
+        dom.joinView.style.display = 'none';
+        dom.createView.style.display = 'block';
+      });
+
+      dom.copyIdBtn.addEventListener('click', () => {
+        const text = dom.newGroupIdDisplay.textContent;
+        navigator.clipboard.writeText(text).then(() => {
+          dom.copyIdBtn.textContent = 'Copied!';
+          setTimeout(() => dom.copyIdBtn.textContent = 'Copy ID & Share', 2000);
+        }).catch(() => alert('Could not copy text.'));
+      });
+
+      dom.joinNewGroupBtn.addEventListener('click', () => enterApp(dom.newGroupIdDisplay.textContent));
+      dom.switchGroupBtn.addEventListener('click', () => { renderSavedGroups(); dom.groupSwitcherModal.style.display = 'block'; });
+      dom.closeSwitcherBtn.addEventListener('click', () => dom.groupSwitcherModal.style.display = 'none');
+      dom.joinAnotherGroupBtn.addEventListener('click', () => enterApp(dom.joinAnotherGroupInput.value.trim().toLowerCase()));
+      dom.createAnotherGroupBtn.addEventListener('click', () => { dom.groupSwitcherModal.style.display = 'none'; showView('group'); dom.showCreateViewBtn.click(); });
+
+      dom.pantrySearch.addEventListener('input', renderFilteredLists);
+      dom.shoppingSearch.addEventListener('input', renderFilteredLists);
+
+      dom.pantryList.addEventListener('click', (e) => handleItemAction('pantry', e));
+      dom.shoppingList.addEventListener('click', (e) => handleItemAction('shopping', e));
+
+      dom.addPantryItemBtn.addEventListener('click', async () => {
+        const name = dom.pantryItemName.value.trim();
+        if (!name) return;
+        const quantity = parseInt(dom.pantryItemQuantity.value) || 1;
+        const pantryRef = collection(db, `groups/${state.activeGroup}/pantry`);
+        const existing = state.pantry.find(d => d.data().name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+          await updateDoc(doc(pantryRef, existing.id), { 
+            quantity: (existing.data().quantity || 0) + quantity, 
+            addedBy: state.userName 
+          });
+        } else {
+          await addDoc(pantryRef, { 
+            name, 
+            quantity, 
+            unit: dom.pantryItemUnit.value.trim(), 
+            addedBy: state.userName 
+          });
+        }
+        dom.pantryItemName.value = dom.pantryItemQuantity.value = dom.pantryItemUnit.value = '';
+      });
+
+      dom.addShoppingItemBtn.addEventListener('click', async () => {
+        const name = dom.shoppingItemName.value.trim();
+        if (name && !state.shopping.find(d => d.data().name.toLowerCase() === name.toLowerCase())) {
+          await addDoc(collection(db, `groups/${state.activeGroup}/shoppingList`), { name, addedBy: state.userName });
+        }
+        dom.shoppingItemName.value = '';
+      });
+
+      dom.closeRecipeModalBtn.addEventListener('click', () => dom.recipeModal.style.display = "none");
+      dom.suggestRecipesBtn.addEventListener('click', handleSuggestRecipes);
+
+      dom.scanPantryBtn.addEventListener('click', () => startScanner(dom.pantryItemName));
+      dom.scanShoppingBtn.addEventListener('click', () => startScanner(dom.shoppingItemName));
+      dom.closeScannerBtn.addEventListener('click', stopScanner);
+
+      // Enter key submits for inputs
+      [dom.pantryItemName, dom.pantryItemQuantity, dom.pantryItemUnit].forEach(el => {
+        el.addEventListener('keypress', e => { if (e.key === 'Enter') dom.addPantryItemBtn.click(); });
+      });
+      dom.shoppingItemName.addEventListener('keypress', e => { if (e.key === 'Enter') dom.addShoppingItemBtn.click(); });
+
+      onAuthStateChanged(auth, user => {
+        if (user) {
+          if (state.activeGroup) enterApp(state.activeGroup);
+          else showView('group');
+        } else {
+          signInAnonymously(auth).catch(err => console.error("Sign in failed:", err));
+        }
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body>
+  <h1>Smart Pantry</h1>
 
-    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">PantryPro</h1>
-            <p id="header-subtitle" class="text-md text-gray-600 mt-2">Your shared pantry, simplified.</p>
-        </header>
+  <section id="user-section">
+    <input id="user-name-input" placeholder="Your name">
+    <button id="save-name-btn">Save Name</button>
+  </section>
 
-        <div id="initial-setup-view">
-            <div id="group-manager" class="p-6 bg-white rounded-xl shadow-lg max-w-md mx-auto">
-                <div id="join-view">
-                    <h2 class="text-2xl font-bold mb-4 text-center">Welcome!</h2>
-                    <p class="text-center text-gray-600 mb-4">Join a group to get started.</p>
-                    <input type="text" id="join-group-id-input" placeholder="Enter Group ID" class="w-full p-3 border rounded-lg text-center">
-                    <button id="join-group-btn" class="btn-primary">Join Group</button>
-                    <button id="show-create-view-btn" class="btn-secondary">Create a New Group</button>
-                </div>
-                <div id="create-view" style="display: none;">
-                    <h2 class="text-2xl font-bold mb-4 text-center">Create a Group</h2>
-                    <p class="text-center text-gray-600 mb-2">Your new Group ID is:</p>
-                    <div class="bg-gray-100 p-4 rounded-lg text-center mb-4">
-                        <p id="new-group-id-display" class="text-2xl font-mono font-bold tracking-wider"></p>
-                    </div>
-                    <button id="copy-id-btn" class="btn-primary">Copy ID & Share</button>
-                    <button id="join-new-group-btn" class="btn-secondary">Let's Go!</button>
-                </div>
-            </div>
-            <div id="name-manager" class="p-6 bg-white rounded-xl shadow-lg max-w-md mx-auto" style="display: none;">
-                <h2 class="text-2xl font-bold mb-4 text-center">What's your name?</h2>
-                <p class="text-center text-gray-600 mb-4">This will be shown next to items you add.</p>
-                <input type="text" id="user-name-input" placeholder="Enter your name" class="w-full p-3 border rounded-lg text-center">
-                <button id="save-name-btn" class="btn-primary">Save and Enter</button>
-            </div>
-        </div>
-
-        <main id="app-content" class="grid grid-cols-1 lg:grid-cols-2 gap-8" style="display: none;">
-            <div class="bg-white p-6 rounded-xl shadow-lg flex flex-col">
-                <div class="flex justify-between items-center mb-4 border-b pb-2">
-                    <h2 class="text-2xl font-bold">Pantry Inventory</h2>
-                    <button id="switch-group-btn" class="text-sm text-blue-500 hover:underline">Manage Groups</button>
-                </div>
-                <input type="search" id="pantry-search" placeholder="Search pantry..." class="w-full p-3 border rounded-lg mb-4">
-                <div id="pantry-list" class="space-y-3 h-96 overflow-y-auto pr-2 flex-grow"></div>
-                <div class="mt-4 border-t pt-4">
-                    <button id="suggest-recipes-btn" class="w-full bg-teal-600 text-white p-3 mb-4 rounded-lg font-semibold hover:bg-teal-700">Suggest Recipes</button>
-                    <div class="flex gap-2">
-                        <input type="text" id="pantry-item-name" placeholder="New item" class="w-full p-3 border rounded-lg">
-                        <button id="scan-pantry-btn" class="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Scan</button>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 mt-2">
-                        <input type="number" id="pantry-item-quantity" placeholder="Quantity" class="w-full p-3 border rounded-lg">
-                        <input type="text" id="pantry-item-unit" placeholder="Unit (e.g., L, kg)" class="w-full p-3 border rounded-lg">
-                    </div>
-                    <button id="add-pantry-item-btn" class="btn-primary">Add to Pantry</button>
-                </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-lg flex flex-col">
-                <div class="flex justify-between items-center mb-4 border-b pb-2">
-                    <h2 class="text-2xl font-bold">Shopping List</h2>
-                    <p id="user-display" class="text-sm text-gray-500"></p>
-                </div>
-                <input type="search" id="shopping-search" placeholder="Search list..." class="w-full p-3 border rounded-lg mb-4">
-                <div id="shopping-list" class="space-y-3 h-96 overflow-y-auto pr-2 flex-grow"></div>
-                <div class="mt-4 border-t pt-4">
-                    <div class="flex gap-2">
-                        <input type="text" id="shopping-item-name" placeholder="Add to shopping list" class="w-full p-3 border rounded-lg">
-                        <button id="scan-shopping-btn" class="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Scan</button>
-                    </div>
-                    <button id="add-shopping-item-btn" class="btn-primary mt-2">Add to List</button>
-                </div>
-            </div>
-        </main>
+  <section id="group-section">
+    <div id="join-view">
+      <input id="join-group-id-input" placeholder="Enter Group ID">
+      <button id="join-group-btn">Join Group</button>
+      <button id="show-create-view-btn">Create New Group</button>
     </div>
-    
-    <div id="recipe-modal" class="modal"><div class="modal-content"><button id="close-recipe-modal-btn" class="absolute top-4 right-4 text-3xl">&times;</button><h2 class="text-2xl font-bold mb-4 text-center">Recipe Suggestions</h2><div id="recipe-results"></div></div></div>
-    <div id="group-switcher-modal" class="modal"><div class="modal-content"><button id="close-switcher-btn" class="absolute top-4 right-4 text-3xl">&times;</button><h2 class="text-2xl font-bold mb-4">Your Groups</h2><ul id="saved-groups-list" class="space-y-2 mb-4"></ul><hr class="my-4"><h3 class="text-lg font-semibold mb-2">Join or Create</h3><input type="text" id="join-another-group-input" placeholder="Enter Group ID" class="w-full p-3 border rounded-lg text-center"><button id="join-another-group-btn" class="btn-primary">Join</button><button id="create-another-group-btn" class="btn-secondary">Create New</button></div></div>
-    <div id="scanner-modal" class="modal"><video id="scanner-video"></video><p id="scanner-status" class="text-white mt-4 font-semibold"></p><button id="close-scanner-btn" class="btn-secondary mt-4 w-auto px-6">Cancel</button></div>
+    <div id="create-view">
+      <p>Your Group ID: <span id="new-group-id-display"></span></p>
+      <button id="copy-id-btn">Copy ID & Share</button>
+      <button id="join-new-group-btn">Join</button>
+    </div>
+  </section>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  <section>
+    <h2>Pantry</h2>
+    <input id="pantry-search" placeholder="Search pantry">
+    <div id="pantry-list"></div>
+    <input id="pantry-item-name" placeholder="Item name">
+    <input id="pantry-item-quantity" type="number" placeholder="Qty">
+    <input id="pantry-item-unit" placeholder="Unit">
+    <button id="add-pantry-item-btn">Add Pantry Item</button>
+    <button id="scan-pantry-btn">Scan Pantry Item</button>
+  </section>
 
-        const firebaseConfig = { apiKey: "AIzaSyBtU2LGRGPrKVXSHKBslsupeso0Km7eJQQ", authDomain: "pantryprogithubv1.firebaseapp.com", projectId: "pantryprogithubv1", storageBucket: "pantryprogithubv1.firebasestorage.app", messagingSenderId: "686136450705", appId: "1:686136450705:web:f9a82f5ac2bb26a6c2e930" };
-        const geminiApiKey = "AIzaSyDh5zod6zk33RRwjF79NqKdT2mLsHmEECc";
+  <section>
+    <h2>Shopping List</h2>
+    <input id="shopping-search" placeholder="Search shopping list">
+    <div id="shopping-list"></div>
+    <input id="shopping-item-name" placeholder="Item name">
+    <button id="add-shopping-item-btn">Add Shopping Item</button>
+    <button id="scan-shopping-btn">Scan Shopping Item</button>
+  </section>
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+  <section>
+    <button id="suggest-recipes-btn">Suggest Recipes</button>
+  </section>
 
-        const dom = Object.fromEntries(Array.from(document.querySelectorAll('[id]')).map(el => [el.id.replace(/-./g, c => c[1].toUpperCase()), el]));
-        const codeReader = new ZXing.BrowserMultiFormatReader();
+  <!-- Modals -->
+  <div id="group-switcher-modal">
+    <button id="close-switcher-btn">Close</button>
+    <input id="join-another-group-input" placeholder="Group ID">
+    <button id="join-another-group-btn">Join Another Group</button>
+    <button id="create-another-group-btn">Create New Group</button>
+  </div>
 
-        let state = {
-            userName: localStorage.getItem('pantryUserName'),
-            activeGroup: localStorage.getItem('activePantryGroup'),
-            savedGroups: JSON.parse(localStorage.getItem('pantryGroupList')) || [],
-            pantry: [],
-            shopping: [],
-            pantryUnsubscribe: () => {},
-            shoppingUnsubscribe: () => {},
-        };
-        
-        function showView(view) {
-            dom.initialSetupView.style.display = 'none';
-            dom.appContent.style.display = 'none';
-            if (view === 'app') dom.appContent.style.display = 'grid';
-            else {
-                dom.initialSetupView.style.display = 'block';
-                dom.groupManager.style.display = view === 'group' ? 'block' : 'none';
-                dom.nameManager.style.display = view === 'name' ? 'block' : 'none';
-            }
-        }
+  <div id="recipe-modal">
+    <button id="close-recipe-modal-btn">Close</button>
+    <div id="recipes-container"></div>
+  </div>
 
-        function loadMainApp(groupId) {
-            showView('app');
-            dom.headerSubtitle.textContent = `Group: ${groupId}`;
-            dom.userDisplay.textContent = `User: ${state.userName}`;
-            setupFirestoreListeners(groupId);
-        }
-
-        function enterApp(groupId) {
-            if (!state.savedGroups.includes(groupId)) {
-                state.savedGroups.push(groupId);
-                localStorage.setItem('pantryGroupList', JSON.stringify(state.savedGroups));
-            }
-            state.activeGroup = groupId;
-            localStorage.setItem('activePantryGroup', groupId);
-            if (state.userName) loadMainApp(groupId);
-            else showView('name');
-        }
-
-        function setupFirestoreListeners(groupId) {
-            state.pantryUnsubscribe();
-            state.shoppingUnsubscribe();
-            const pantryRef = collection(db, `groups/${groupId}/pantry`);
-            const shoppingRef = collection(db, `groups/${groupId}/shoppingList`);
-            state.pantryUnsubscribe = onSnapshot(pantryRef, snap => { state.pantry = snap.docs; renderFilteredLists(); });
-            state.shoppingUnsubscribe = onSnapshot(shoppingRef, snap => { state.shopping = snap.docs; renderFilteredLists(); });
-        }
-        
-        function renderFilteredLists() {
-            const render = (el, list, type) => {
-                const searchTerm = dom[`${type}Search`].value.toLowerCase();
-                const filtered = list.filter(doc => doc.data().name.toLowerCase().includes(searchTerm));
-                renderList(el, filtered, type);
-            };
-            render(dom.pantryList, state.pantry, 'pantry');
-            render(dom.shoppingList, state.shopping, 'shopping');
-        }
-
-        function renderList(element, docs, type) {
-            element.innerHTML = docs.length === 0 ? `<p class="text-gray-500 text-center p-4">No items found.</p>` : '';
-            docs.sort((a, b) => a.data().name.localeCompare(b.data().name)).forEach(doc => {
-                const item = doc.data();
-                const itemEl = document.createElement('div');
-                itemEl.className = 'item-card p-3 bg-gray-50 rounded-lg border';
-                const addedBy = item.addedBy ? `<small class="text-gray-400 block">By: ${item.addedBy}</small>` : '';
-                if (type === 'pantry') {
-                    itemEl.innerHTML = `<div class="flex justify-between items-start"><div><span class="font-semibold">${item.name}</span><span class="text-sm ml-2 ${item.quantity <= 1 ? 'text-red-600 font-bold' : 'text-gray-500'}">Qty: ${item.quantity}${item.unit ? ` ${item.unit}`:''}</span>${addedBy}</div><div class="flex items-center space-x-1 flex-shrink-0 ml-2"><button data-id="${doc.id}" data-quantity="${item.quantity}" data-action="decrease" class="px-2 py-1 text-sm bg-yellow-400 text-white rounded">-</button><button data-id="${doc.id}" data-quantity="${item.quantity}" data-action="increase" class="px-2 py-1 text-sm bg-blue-400 text-white rounded">+</button><button data-id="${doc.id}" data-name="${item.name}" data-action="shop" class="px-2 py-1 text-sm bg-green-500 text-white rounded">Shop</button><button data-id="${doc.id}" data-action="delete" class="px-2 py-1 text-sm bg-red-500 text-white rounded">Del</button></div></div>`;
-                } else {
-                    itemEl.innerHTML = `<div class="flex justify-between items-start"><div><span class="font-semibold">${item.name}</span>${addedBy}</div><div class="flex items-center space-x-2 flex-shrink-0 ml-2"><button data-id="${doc.id}" data-name="${item.name}" data-action="purchase" class="px-3 py-1 text-sm bg-green-500 text-white rounded-lg">Got it!</button><button data-id="${doc.id}" data-action="delete" class="px-3 py-1 text-sm bg-red-500 text-white rounded-lg">Del</button></div></div>`;
-                }
-                element.appendChild(itemEl);
-            });
-        }
-        
-        async function handleItemAction(listType, e) {
-            const button = e.target.closest('button');
-            if (!button) return;
-            const { id, action, name, quantity } = button.dataset;
-            const collectionRef = listType === 'pantry' ? collection(db, `groups/${state.activeGroup}/pantry`) : collection(db, `groups/${state.activeGroup}/shoppingList`);
-            const itemRef = doc(collectionRef, id);
-
-            if (listType === 'pantry') {
-                if (action === 'increase') await updateDoc(itemRef, { quantity: parseInt(quantity) + 1, addedBy: state.userName });
-                else if (action === 'decrease') { if (parseInt(quantity) > 1) await updateDoc(itemRef, { quantity: parseInt(quantity) - 1, addedBy: state.userName }); else await deleteDoc(itemRef); } 
-                else if (action === 'delete') await deleteDoc(itemRef);
-                else if (action === 'shop') { if (!state.shopping.find(d => d.data().name.toLowerCase() === name.toLowerCase())) await addDoc(collection(db, `groups/${state.activeGroup}/shoppingList`), { name, addedBy: state.userName }); }
-            } else {
-                if (action === 'purchase') {
-                    const pantryRef = collection(db, `groups/${state.activeGroup}/pantry`);
-                    const existing = state.pantry.find(d => d.data().name.toLowerCase() === name.toLowerCase());
-                    if (existing) await updateDoc(doc(pantryRef, existing.id), { quantity: (existing.data().quantity || 0) + 1, addedBy: state.userName });
-                    else await addDoc(pantryRef, { name, quantity: 1, unit: '', addedBy: state.userName });
-                    await deleteDoc(itemRef);
-                } else if (action === 'delete') await deleteDoc(itemRef);
-            }
-        }
-        
-        async function handleSuggestRecipes() {
-            if (!geminiApiKey.startsWith("AIza")) return alert("Please add a valid Gemini API key.");
-            if (state.pantry.length === 0) return alert("Pantry is empty!");
-            dom.recipeResults.innerHTML = '<div class="loader"></div>';
-            dom.recipeModal.style.display = "block";
-            const ingredients = state.pantry.map(doc => doc.data().name);
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`;
-            const prompt = `Based on these ingredients: ${ingredients.join(', ')}. Suggest 2 simple recipes. Format response as a valid JSON array of objects. Each object must have keys "title", "description", "ingredients" (array of strings), and "instructions" (array of strings). Return ONLY the JSON array.`;
-            try {
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) });
-                if (!response.ok) throw new Error(`API Error (${response.status})`);
-                const data = await response.json();
-                const recipes = JSON.parse(data.candidates[0].content.parts[0].text);
-                renderRecipes(recipes, ingredients);
-            } catch (error) {
-                dom.recipeResults.innerHTML = `<p class="text-center text-red-500">Could not get recipes. ${error.message}</p>`;
-            }
-        }
-        function renderRecipes(recipes, ingredients) {
-            dom.recipeResults.innerHTML = '';
-            const pantryLower = ingredients.map(i => i.toLowerCase());
-            if (!recipes || recipes.length === 0) return dom.recipeResults.innerHTML = `<p class="text-center text-gray-500">No recipes found.</p>`;
-            recipes.forEach(recipe => {
-                const recipeEl = document.createElement('div');
-                recipeEl.className = 'p-4 border rounded-lg bg-gray-50';
-                recipeEl.innerHTML = `<h3 class="text-xl font-bold text-teal-700">${recipe.title}</h3><p class="text-sm text-gray-600 mb-3">${recipe.description}</p><h4 class="font-semibold mb-1">Ingredients:</h4><ul class="list-disc list-inside mb-3 text-sm">${(recipe.ingredients || []).map(ing => `<li class="${pantryLower.some(p => ing.toLowerCase().includes(p)) ? 'text-green-600 font-semibold' : ''}">${ing} ${pantryLower.some(p => ing.toLowerCase().includes(p)) ? '✓' : ''}</li>`).join('')}</ul><h4 class="font-semibold mb-1">Instructions:</h4><ol class="list-decimal list-inside text-sm space-y-1">${(recipe.instructions || []).map(step => `<li>${step}</li>`).join('')}</ol>`;
-                dom.recipeResults.appendChild(recipeEl);
-            });
-        }
-        
-        function init() {
-            dom.saveNameBtn.addEventListener('click', () => {
-                const userName = dom.userNameInput.value.trim();
-                if (userName) {
-                    state.userName = userName;
-                    localStorage.setItem('pantryUserName', userName);
-                    loadMainApp(state.activeGroup);
-                }
-            });
-            dom.joinGroupBtn.addEventListener('click', (e) => joinGroup(dom.joinGroupIdInput.value.trim().toLowerCase()));
-            dom.showCreateViewBtn.addEventListener('click', () => {
-                dom.newGroupIdDisplay.textContent = generateGroupId();
-                dom.joinView.style.display = 'none';
-                dom.createView.style.display = 'block';
-            });
-            dom.copyIdBtn.addEventListener('click', () => {
-                const text = dom.newGroupIdDisplay.textContent;
-                navigator.clipboard.writeText(text).then(() => {
-                    dom.copyIdBtn.textContent = 'Copied!';
-                    setTimeout(() => dom.copyIdBtn.textContent = 'Copy ID & Share', 2000);
-                }).catch(() => alert('Could not copy text.'));
-            });
-            dom.joinNewGroupBtn.addEventListener('click', () => enterApp(dom.newGroupIdDisplay.textContent));
-            dom.switchGroupBtn.addEventListener('click', () => { renderSavedGroups(); dom.groupSwitcherModal.style.display = 'block'; });
-            dom.closeSwitcherBtn.addEventListener('click', () => dom.groupSwitcherModal.style.display = 'none');
-            dom.joinAnotherGroupBtn.addEventListener('click', (e) => joinGroup(dom.joinAnotherGroupInput.value.trim().toLowerCase()));
-            dom.createAnotherGroupBtn.addEventListener('click', () => { dom.groupSwitcherModal.style.display = 'none'; showView('group'); dom.showCreateViewBtn.click(); });
-            dom.pantrySearch.addEventListener('input', renderFilteredLists);
-            dom.shoppingSearch.addEventListener('input', renderFilteredLists);
-            dom.pantryListEl.addEventListener('click', (e) => handleItemAction('pantry', e));
-            dom.shoppingListEl.addEventListener('click', (e) => handleItemAction('shopping', e));
-            dom.addPantryBtn.addEventListener('click', async () => {
-                const name = dom.pantryNameInput.value.trim();
-                if (!name) return;
-                const quantity = parseInt(dom.pantryQtyInput.value) || 1;
-                const pantryRef = collection(db, `groups/${state.activeGroup}/pantry`);
-                const existing = state.pantry.find(d => d.data().name.toLowerCase() === name.toLowerCase());
-                if (existing) await updateDoc(doc(pantryRef, existing.id), { quantity: (existing.data().quantity || 0) + quantity, addedBy: state.userName });
-                else await addDoc(pantryRef, { name, quantity, unit: dom.pantryUnitInput.value.trim(), addedBy: state.userName });
-                dom.pantryNameInput.value = dom.pantryQtyInput.value = dom.pantryUnitInput.value = '';
-            });
-            dom.addShoppingBtn.addEventListener('click', async () => {
-                const name = dom.shoppingNameInput.value.trim();
-                if (name && !state.shopping.find(d => d.data().name.toLowerCase() === name.toLowerCase())) {
-                    await addDoc(collection(db, `groups/${state.activeGroup}/shoppingList`), { name, addedBy: state.userName });
-                }
-                dom.shoppingNameInput.value = '';
-            });
-            dom.closeRecipeModalBtn.addEventListener('click', () => dom.recipeModal.style.display = "none");
-            dom.suggestRecipesBtn.addEventListener('click', handleSuggestRecipes);
-            dom.scanPantryBtn.addEventListener('click', () => startScanner(dom.pantryNameInput));
-            dom.scanShoppingBtn.addEventListener('click', () => startScanner(dom.shoppingNameInput));
-            dom.closeScannerBtn.addEventListener('click', stopScanner);
-
-            onAuthStateChanged(auth, user => {
-                if (user) {
-                    if (state.activeGroup) enterApp(state.activeGroup);
-                    else showView('group');
-                } else {
-                    signInAnonymously(auth).catch(err => console.error("Sign in failed:", err));
-                }
-            });
-        }
-
-        init();
-    </script>
+  <div id="scanner-container">
+    <button id="close-scanner-btn">Close Scanner</button>
+  </div>
 </body>
 </html>
-
