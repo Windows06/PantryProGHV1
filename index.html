@@ -4,13 +4,218 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Pantry</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    section { margin-bottom: 2rem; }
-    button { margin-left: .5rem; }
-    #group-switcher-modal, #recipe-modal, #scanner-container { display: none; }
+    /* --- CSS Variables --- */
+    :root {
+      --primary-color: #007bff;
+      --primary-hover: #0056b3;
+      --secondary-color: #6c757d;
+      --secondary-hover: #5a6268;
+      --bg-light: #f8f9fa;
+      --bg-white: #ffffff;
+      --border-color: #ced4da;
+      --text-dark: #343a40;
+      --text-light: #ffffff;
+      --shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+      --border-radius: 8px;
+    }
+
+    /* --- General & Reset --- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--bg-light);
+      color: var(--text-dark);
+      line-height: 1.6;
+    }
+
+    /* --- Layout & Containers --- */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    h1, h2 {
+      margin-bottom: 1rem;
+      color: var(--text-dark);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+      color: var(--primary-color);
+    }
+    
+    h2 {
+      font-size: 1.75rem;
+    }
+
+    section {
+      background: var(--bg-white);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+    }
+    
+    .flex-group {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .flex-group > input {
+      flex-grow: 1;
+      margin-bottom: 0;
+    }
+    
+    .button-group {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    /* --- Form Elements --- */
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      font-family: 'Poppins', sans-serif;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+    }
+
+    /* --- Buttons --- */
+    button {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      font-family: 'Poppins', sans-serif;
+      transition: background-color 0.2s, transform 0.1s;
+      background-color: var(--primary-color);
+      color: var(--text-light);
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    button.secondary {
+      background-color: var(--secondary-color);
+    }
+
+    button.secondary:hover {
+      background-color: var(--secondary-hover);
+    }
+
+    /* --- Specific Section Styling --- */
+    #group-section div[id$="-view"] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    #new-group-id-display {
+      font-weight: 600;
+      background-color: var(--bg-light);
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      font-family: monospace;
+      font-size: 1.2rem;
+      color: var(--primary-color);
+    }
+
+    /* --- Lists --- */
+    #pantry-list, #shopping-list {
+      min-height: 80px;
+      background-color: var(--bg-light);
+      border: 1px dashed var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    /* --- Modals --- */
+    .modal {
+      /* display: none; will be controlled by JS */
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      display: flex; /* Use flexbox to center content */
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-content {
+      background-color: var(--bg-white);
+      padding: 2rem;
+      border-radius: var(--border-radius);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+    }
+    
+    .modal-content > h2 {
+      margin-top: 0;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 2rem;
+      font-weight: bold;
+      line-height: 1;
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--secondary-color);
+      cursor: pointer;
+    }
+
+    .close-btn:hover {
+      color: var(--text-dark);
+      background: none; /* Override button hover */
+      transform: none; /* Override button hover */
+    }
   </style>
-  <!-- Firebase -->
+  
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -85,7 +290,7 @@
     const generateId = () => Math.random().toString(36).substring(2, 8);
     function showView(view) {
       if (view === 'group') {
-        dom.joinView.style.display = 'block';
+        dom.joinView.style.display = 'flex';
         dom.createView.style.display = 'none';
       }
     }
@@ -99,12 +304,18 @@
     function handleItemAction(list, e) { console.log("Clicked", list, e.target); }
     function renderFilteredLists() { console.log("Filter triggered"); }
     function renderSavedGroups() { console.log("Render saved groups"); }
-    function handleSuggestRecipes() { dom.recipeModal.style.display = "block"; }
-    function startScanner(targetInput) { dom.scannerContainer.style.display = "block"; console.log("Start scanner for", targetInput); }
+    function handleSuggestRecipes() { dom.recipeModal.style.display = "flex"; }
+    function startScanner(targetInput) { dom.scannerContainer.style.display = "flex"; console.log("Start scanner for", targetInput); }
     function stopScanner() { dom.scannerContainer.style.display = "none"; }
 
     // --- Event listeners ---
     function init() {
+      // Hide elements that JS will manage
+      dom.groupSwitcherModal.style.display = 'none';
+      dom.recipeModal.style.display = 'none';
+      dom.scannerContainer.style.display = 'none';
+      dom.createView.style.display = 'none';
+      
       dom.saveNameBtn.addEventListener('click', () => {
         const userName = dom.userNameInput.value.trim();
         if (userName) {
@@ -118,7 +329,7 @@
       dom.showCreateViewBtn.addEventListener('click', () => {
         dom.newGroupIdDisplay.textContent = generateId();
         dom.joinView.style.display = 'none';
-        dom.createView.style.display = 'block';
+        dom.createView.style.display = 'flex';
       });
 
       dom.copyIdBtn.addEventListener('click', () => {
@@ -130,7 +341,7 @@
       });
 
       dom.joinNewGroupBtn.addEventListener('click', () => enterApp(dom.newGroupIdDisplay.textContent));
-      dom.switchGroupBtn.addEventListener('click', () => { renderSavedGroups(); dom.groupSwitcherModal.style.display = 'block'; });
+      dom.switchGroupBtn.addEventListener('click', () => { renderSavedGroups(); dom.groupSwitcherModal.style.display = 'flex'; });
       dom.closeSwitcherBtn.addEventListener('click', () => dom.groupSwitcherModal.style.display = 'none');
       dom.joinAnotherGroupBtn.addEventListener('click', () => enterApp(dom.joinAnotherGroupInput.value.trim().toLowerCase()));
       dom.createAnotherGroupBtn.addEventListener('click', () => { dom.groupSwitcherModal.style.display = 'none'; showView('group'); dom.showCreateViewBtn.click(); });
@@ -165,98 +376,4 @@
 
       dom.addShoppingItemBtn.addEventListener('click', async () => {
         const name = dom.shoppingItemName.value.trim();
-        if (name && !state.shopping.find(d => d.data().name.toLowerCase() === name.toLowerCase())) {
-          await addDoc(collection(db, `groups/${state.activeGroup}/shoppingList`), { name, addedBy: state.userName });
-        }
-        dom.shoppingItemName.value = '';
-      });
-
-      dom.closeRecipeModalBtn.addEventListener('click', () => dom.recipeModal.style.display = "none");
-      dom.suggestRecipesBtn.addEventListener('click', handleSuggestRecipes);
-
-      dom.scanPantryBtn.addEventListener('click', () => startScanner(dom.pantryItemName));
-      dom.scanShoppingBtn.addEventListener('click', () => startScanner(dom.shoppingItemName));
-      dom.closeScannerBtn.addEventListener('click', stopScanner);
-
-      // Enter key submits for inputs
-      [dom.pantryItemName, dom.pantryItemQuantity, dom.pantryItemUnit].forEach(el => {
-        el.addEventListener('keypress', e => { if (e.key === 'Enter') dom.addPantryItemBtn.click(); });
-      });
-      dom.shoppingItemName.addEventListener('keypress', e => { if (e.key === 'Enter') dom.addShoppingItemBtn.click(); });
-
-      onAuthStateChanged(auth, user => {
-        if (user) {
-          if (state.activeGroup) enterApp(state.activeGroup);
-          else showView('group');
-        } else {
-          signInAnonymously(auth).catch(err => console.error("Sign in failed:", err));
-        }
-      });
-    }
-
-    window.addEventListener('DOMContentLoaded', init);
-  </script>
-</head>
-<body>
-  <h1>Smart Pantry</h1>
-
-  <section id="user-section">
-    <input id="user-name-input" placeholder="Your name">
-    <button id="save-name-btn">Save Name</button>
-  </section>
-
-  <section id="group-section">
-    <div id="join-view">
-      <input id="join-group-id-input" placeholder="Enter Group ID">
-      <button id="join-group-btn">Join Group</button>
-      <button id="show-create-view-btn">Create New Group</button>
-    </div>
-    <div id="create-view">
-      <p>Your Group ID: <span id="new-group-id-display"></span></p>
-      <button id="copy-id-btn">Copy ID & Share</button>
-      <button id="join-new-group-btn">Join</button>
-    </div>
-  </section>
-
-  <section>
-    <h2>Pantry</h2>
-    <input id="pantry-search" placeholder="Search pantry">
-    <div id="pantry-list"></div>
-    <input id="pantry-item-name" placeholder="Item name">
-    <input id="pantry-item-quantity" type="number" placeholder="Qty">
-    <input id="pantry-item-unit" placeholder="Unit">
-    <button id="add-pantry-item-btn">Add Pantry Item</button>
-    <button id="scan-pantry-btn">Scan Pantry Item</button>
-  </section>
-
-  <section>
-    <h2>Shopping List</h2>
-    <input id="shopping-search" placeholder="Search shopping list">
-    <div id="shopping-list"></div>
-    <input id="shopping-item-name" placeholder="Item name">
-    <button id="add-shopping-item-btn">Add Shopping Item</button>
-    <button id="scan-shopping-btn">Scan Shopping Item</button>
-  </section>
-
-  <section>
-    <button id="suggest-recipes-btn">Suggest Recipes</button>
-  </section>
-
-  <!-- Modals -->
-  <div id="group-switcher-modal">
-    <button id="close-switcher-btn">Close</button>
-    <input id="join-another-group-input" placeholder="Group ID">
-    <button id="join-another-group-btn">Join Another Group</button>
-    <button id="create-another-group-btn">Create New Group</button>
-  </div>
-
-  <div id="recipe-modal">
-    <button id="close-recipe-modal-btn">Close</button>
-    <div id="recipes-container"></div>
-  </div>
-
-  <div id="scanner-container">
-    <button id="close-scanner-btn">Close Scanner</button>
-  </div>
-</body>
-</html>
+        if (name && !state
